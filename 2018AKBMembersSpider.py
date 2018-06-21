@@ -1,11 +1,9 @@
 import os
 import requests
+from requests.exceptions import SSLError
 from pyquery import PyQuery as pq
 import re
 import pandas
-#import urllib3
-from requests.exceptions import SSLError
-#urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)  #for request.get(..., verify = False)
 
 HEADERS = {'User-Agent' : 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36'}
 INDEX_URL = 'https://www.akb48.co.jp/sousenkyo53rd/candidate'
@@ -99,9 +97,9 @@ def parse_detail_page(id, list):
         'name' : doc('.profileTxt h4').text().strip().split('／')[0],
         'name_alpha' : doc('.alp').text().strip(),              #字母拼写
         'name_kana' : doc('.kana').text().strip(),              #片假名
-        'early_result' : doc('.date').text().split('：')[-1],   #速报结果
+        'early_report' : doc('.date').text().split('：')[-1],   #速报结果
         'result' : doc('.result').text().split('：')[-1],       #开票结果
-        'commitment' : doc('.commit p').text().split('\n')[0].split('：')[-1],   #目标
+        'goal' : doc('.commit p').text().split('\n')[0].split('：')[-1],   #目标
         'poster' : doc('.poster img').attr('src').split('?')[0],    #官方海报链接
         'group' : result[0].strip(),        #所属group
         'debut' : result[1].strip(),        #出道期数
@@ -143,8 +141,8 @@ def merge_list(list1, list2, output):
                     'concurrent' : a['concurrent'],
                     'debut' : b['debut'],
                     'receipt_date' : a['date'],
-                    'commitment' : b['commitment'],
-                    'early_result' : b['early_result'],
+                    'goal' : b['goal'],
+                    'early_report' : b['early_report'],
                     'result' : b['result'],
                     '2017' : b['past_results']['2017'],
                     '2016' : b['past_results']['2016'],
@@ -183,6 +181,7 @@ def main():
         save_member_poster(member['poster'], member['name'])
     merge_list(member_list, member_list_detail, member_list_final)
     save_data_to_excel(member_list_final, MEMBER_INFO_FILE)
+    print('Collect %d members in total.' % len(member_list_final))
 
 if __name__ == '__main__':
     main()
