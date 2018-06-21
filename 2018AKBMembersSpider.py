@@ -4,6 +4,7 @@ from requests.exceptions import SSLError
 from pyquery import PyQuery as pq
 import re
 import pandas
+from multiprocessing.dummy import Pool
 
 HEADERS = {'User-Agent' : 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36'}
 INDEX_URL = 'https://www.akb48.co.jp/sousenkyo53rd/candidate'
@@ -27,9 +28,6 @@ def get_resource(url, params):
         r.raise_for_status()
         r.encoding = r.apparent_encoding
         print('URL: ' + r.url)
-    except requests.exceptions.SSLError:
-        print('SSL Error, retry: ' + r.url)
-        r = get_resource(url, params)
     except Exception as e:
         print(e)
         r = None
@@ -165,20 +163,31 @@ def save_data_to_excel(data, file_name):
     df.to_excel(file_name, columns = columns, index = False)
     print('Save file: ' + file_name)
 
+def multi_processing(proc, func, args):
+    pool = Pool(proc)
+    pool.starmap(func, args)
+    pool.close()
+    pool.join()
+
 def main():
     member_list = []
     member_list_detail = []
     member_list_final = []
     mkdir(PHOTO_DIR)
     mkdir(POSTER_DIR)
+
     for group in GROUPS:
         parse_index_page(group, member_list)
-    for member in member_list:
-        save_member_photo(member['photo'], member['name'])
-    for member in member_list:
-        parse_detail_page(member['id'], member_list_detail)
-    for member in member_list_detail:
-        save_member_poster(member['poster'], member['name'])
+    
+    task_args = [(member['photo'], member['name']) for member in member_list]
+    multi_processing(4, save_member_photo, task_args)
+
+    task_args = [(member['id'], member_list_detail) for member in member_list]
+    multi_processing(4, parse_detail_page, task_args)
+
+    task_args = [(member['poster'], member['name']) for member in member_list_detail]
+    multi_processing(4, save_member_poster, task_args)
+
     merge_list(member_list, member_list_detail, member_list_final)
     save_data_to_excel(member_list_final, MEMBER_INFO_FILE)
     print('Collect %d members in total.' % len(member_list_final))
